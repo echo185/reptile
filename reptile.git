@@ -1,0 +1,52 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+
+# 设置请求头
+headers={
+    'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36'
+}
+
+# 定义保存数据的列表
+books=[]
+
+# 循环爬取网页（豆瓣top250书籍共10页每页25条）
+for page in range(0,250,25):
+    url=f'https://book.douban.com/top250?start={page}'
+    response=requests.get(url,headers=headers)
+
+    # 判断是否请求成功
+    if response.status_code!=200:
+        print(f"请求失败，错误码：{response.status_code}")
+        break
+
+    # 使用BeautifulSoup
+    soup=BeautifulSoup(response.text,'html.parser')
+
+    for item in soup.find_all('tr', class_='item'):
+        # 获取标题
+        title_tag = item.find('div', class_='pl2')
+        title = title_tag.find('a')['title'].strip() if title_tag else "无标题"
+
+        # 获取作者
+        pub_tag = item.find('p', class_='pl')
+        pub_info = pub_tag.text.strip() if pub_tag else ""
+        pub_parts = [part.strip() for part in pub_info.split('/')]
+
+        author = pub_parts[0] if len(pub_parts) > 0 else "未知"
+        # 获取评分
+        rating_tag = item.find('span', class_='rating_nums')
+        rating = rating_tag.text.strip() if rating_tag else "暂无评分"
+
+        # 获取简介
+        intro_tag = item.find('span', class_='inq')
+        introduction = intro_tag.text.strip() if intro_tag else "暂无简介"
+
+        books.append([title, author, rating, introduction])
+
+    print(f"已成功爬取第 {page // 25 + 1} 页数据")
+with open("Douban_book_top250.csv","w",newline='',encoding='utf-8-sig') as file:
+    writer = csv.writer(file)
+    writer.writerow(['标题','作者','评分','简介'])
+    writer.writerows(books)
+print("爬取成功，数据已经保存至\"Douban_book_top250.csv\"")
